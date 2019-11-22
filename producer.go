@@ -1,17 +1,17 @@
 package main
 
 import (
-	"io/ioutil"
 	"encoding/json"
-	"net/http"
 	"fmt"
-	"time"
-	"strings"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
-	"gopkg.in/confluentinc/confluent-kafka-go.v1/kafka"
+	"time"
 )
 
 func main() {
@@ -24,37 +24,11 @@ func main() {
 
 	fmt.Println(p)
 
-	// Delivery report handler for produced messages
-	go func() {
-		for e := range p.Events() {
-			switch ev := e.(type) {
-			case *kafka.Message:
-				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition)
-				} else {
-					fmt.Printf("Delivered message to %v\n", ev.TopicPartition)
-				}
-			}
-		}
-	}()
-
-	// Produce messages to topic (asynchronously)
-	topic := "test"
-	for _, word := range []string{"Welcome", "to", "the", "Confluent", "Kafka", "Golang", "client"} {
-		p.Produce(&kafka.Message{
-			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value:          []byte(word),
-		}, nil)
-	}
-
-	// Wait for message deliveries before shutting down
-	p.Flush(90 * 1000)
-
 	stopRetrieverChannel := make(chan bool)
 	defer close(stopRetrieverChannel)
 
 	periodicMessenger := PeriodicMessenger{
-		StopChannel: stopRetrieverChannel,
+		StopChannel:   stopRetrieverChannel,
 		KafkaProducer: p,
 	}
 
@@ -74,8 +48,8 @@ func main() {
 }
 
 type PeriodicMessenger struct {
-	StopChannel <-chan bool
-	KafkaProducer	*kafka.Producer
+	StopChannel   <-chan bool
+	KafkaProducer *kafka.Producer
 }
 
 func (periodicMessenger *PeriodicMessenger) Run() {
@@ -101,14 +75,14 @@ func (periodicMessenger *PeriodicMessenger) Run() {
 
 func (periodicMessenger *PeriodicMessenger) worker() {
 	topic := "test"
-	produce := func (message string) {
+	produce := func(message string) {
 		periodicMessenger.KafkaProducer.Produce(&kafka.Message{
 			TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
-			Value: []byte(message),
+			Value:          []byte(message),
 		}, nil)
 	}
 
-	produceError := func (err error) {
+	produceError := func(err error) {
 		produce(fmt.Sprintf("ERROR: %#v", err))
 	}
 
@@ -128,20 +102,19 @@ func (periodicMessenger *PeriodicMessenger) worker() {
 				fmt.Println(string(body))
 				var data Data
 				if err = json.Unmarshal(body, &data); err != nil {
-						go produceError(err)
-					} else {
-						go produce(strings.Join(data.Data.Words, "-"))
-					}
+					go produceError(err)
+				} else {
+					go produce(strings.Join(data.Data.Words, "-"))
+				}
 			}
 		}
 	}
 }
 
 type Data struct {
-	 Data Words
+	Data Words
 }
 
 type Words struct {
 	Words []string
 }
-

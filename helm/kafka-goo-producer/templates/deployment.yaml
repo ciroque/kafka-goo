@@ -5,7 +5,7 @@ metadata:
   labels:
 {{ include "kafka-goo-producer.labels" . | indent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.replicaCount }}3
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "kafka-goo-producer.name" . }}
